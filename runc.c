@@ -17,7 +17,7 @@ static const char *DEFAULT_DEBUGGER = "gdb";
 
 void print_usage(void)
 {
-	printf("runc: usage: runc [-d|--debug] <filename> [<arguments>]\n");
+	fprintf(stderr, "runc: usage: runc [-d|--debug] <filename> [<arguments>]\n");
 }
 
 void to_hex(const unsigned char *data, int n, char *str)
@@ -282,20 +282,20 @@ int main(int argc, char **argv)
 	int sourcelen;
 	char *sourcecode = readfilestr(filename, &sourcelen);
 	if (!sourcecode) {
-		printf("runc: could not read %s\n", filename);
+		fprintf(stderr, "runc: could not read %s\n", filename);
 		return 1;
 	}
 
 	unsigned char *hash = source_hash(sourcecode, sourcelen);
 	if (!hash) {
-		printf("runc: could not compute hash of %s\n", filename);
+		fprintf(stderr, "runc: could not compute hash of %s\n", filename);
 		free(sourcecode);
 		return 1;
 	}
 
 	char *cache_path = get_cache_path();
 	if (!cache_path) {
-		printf("runc: could not get cache path\n");
+		fprintf(stderr, "runc: could not get cache path\n");
 		free(sourcecode);
 		return 1;
 	}
@@ -303,7 +303,7 @@ int main(int argc, char **argv)
 	char *out_path = get_hash_path(cache_path, hash);
 	free(hash);
 	if (!out_path) {
-		printf("runc: could not generate output file path for %s\n", filename);
+		fprintf(stderr, "runc: could not generate output file path for %s\n", filename);
 		free(sourcecode);
 		free(cache_path);
 		return 1;
@@ -312,7 +312,7 @@ int main(int argc, char **argv)
 	if (!file_exists(out_path)) {
 		mode_t dir_mode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH;
 		if (mkdir_p(cache_path, dir_mode) != 0) {
-			printf("runc: could not create cache directory at %s\n", cache_path);
+			fprintf(stderr, "runc: could not create cache directory at %s\n", cache_path);
 			free(sourcecode);
 			free(cache_path);
 			free(out_path);
@@ -325,7 +325,7 @@ int main(int argc, char **argv)
 		free(hint);
 
 		if (!compile_ok) {
-			printf("runc: error compiling %s to %s\n", filename, out_path);
+			fprintf(stderr, "runc: error compiling %s to %s\n", filename, out_path);
 			free(sourcecode);
 			free(cache_path);
 			free(out_path);
@@ -346,7 +346,7 @@ int main(int argc, char **argv)
 	int launch_ok = launch(out_path, debug, argc - args_start, argv + args_start, &launch_result);
 	free(out_path);
 	if (!launch_ok) {
-		printf("runc: failed to launch %s\n", out_path);
+		fprintf(stderr, "runc: failed to launch %s\n", out_path);
 		return 1;
 	}
 
