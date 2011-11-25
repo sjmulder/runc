@@ -13,10 +13,11 @@
 #include <openssl/sha.h>
 
 static const char *DEFAULT_COMPILER = "clang -Wall -std=c99";
+static const char *DEFAULT_DEBUGGER = "gdb";
 
 void print_usage(void)
 {
-	printf("runc: usage: runc <filename>\n");
+	printf("runc: usage: runc [-d|--debug] <filename> [<arguments>]\n");
 }
 
 void to_hex(const unsigned char *data, int n, char *str)
@@ -218,22 +219,33 @@ bool compile(const char *filename, const char *output, const char *hint, int *re
 	return true;
 }
 
-bool launch(const char *filename, const int argc, char **argv, int *result)
+bool launch(const char *filename, bool debug, int argc, char **argv, int *result)
 {
-	int cmdline_len = strlen(filename);
-	for (int i = 0; i < argc; i++)
+	int cmdline_len = strlen(filename) + 2;
+	if (debug) {
+		cmdline_len += strlen(DEFAULT_DEBUGGER) + 3;
+	}
+	for (int i = 0; i < argc; i++) {
 		cmdline_len += 3 + strlen(argv[i]);
+	}
 
 	char *cmdline = malloc(cmdline_len);
 	if (!cmdline) return NULL;
 
-	strcpy(cmdline, filename);
+	strcpy(cmdline, "\"");
+	if (debug) {
+		strcat(cmdline, DEFAULT_DEBUGGER);
+		strcat(cmdline, "\" \"");
+	}
+	strcat(cmdline, filename);
+	strcat(cmdline, "\"");
 	for (int i = 0; i < argc; i++) {
 		strcat(cmdline, " \"");
 		strcat(cmdline, argv[i]);
 		strcat(cmdline, " \"");
 	}
 	
+	printf("%s\n", cmdline);
 	*result = system(cmdline);
 	free(cmdline);
 	return true;
@@ -241,12 +253,32 @@ bool launch(const char *filename, const int argc, char **argv, int *result)
 
 int main(int argc, char **argv)
 {
+	bool debug = false;
+	char *filename;
+	int args_start;
+	
 	if (argc < 2) {
 		print_usage();
 		return 1;
 	}
 
-	char *filename = argv[1];
+	if (argv[1][0] == '-') {
+		if (argc < 3) {
+			print_usage();
+			return 1;
+		} else if (strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "--debug")) {
+			debug = true;
+			filename = argv[2];
+			args_start = 3;
+		} else {
+			printf("runc: invalid option %s\n", argv[1]);
+			return 1;
+		}
+	} else {
+		filename = argv[1];
+		args_start = 2;
+	}
+	
 	int sourcelen;
 	char *sourcecode = readfilestr(filename, &sourcelen);
 	if (!sourcecode) {
@@ -311,7 +343,7 @@ int main(int argc, char **argv)
 	free(cache_path);
 	
 	int launch_result;
-	int launch_ok = launch(out_path, argc - 2, argv + 2, &launch_result);
+	int launch_ok = launch(out_path, debug, argc - args_start, argv + args_start, &launch_result);
 	free(out_path);
 	if (!launch_ok) {
 		printf("runc: failed to launch %s\n", out_path);

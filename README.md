@@ -16,6 +16,10 @@ Run compiled language files as if they were shell scripts.
     $ runc main.c
     Hello, World!
 
+To debug with gdb:
+
+    $ runc -d main.c
+
 ### How it works
 
 RunC compiles the source file using some default compiler flags and invokes the built executable, passing on any other arguments. The executable is cached in `~/.runc/caches/<hash>`, where `hash` is a SHA-1 hash of the full file.
